@@ -1,0 +1,43 @@
+{
+  "name": "clickstudio-control-center-cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for Click Studio Control Center — manage projects, tasks, and logs from your terminal or AI agent",
+  "type": "module",
+  "main": "dist/src/cli.js",
+  "bin": {
+    "ccctl": "dist/bin/ccctl.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx bin/ccctl.ts",
+    "start": "node dist/bin/ccctl.js",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "clickstudio",
+    "click-studio",
+    "control-center",
+    "cli",
+    "ai-agent",
+    "developer-tools"
+  ],
+  "author": "deifosv",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ]
+}
