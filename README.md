@@ -9,7 +9,7 @@ Designed for both humans (with colored, friendly output in a TTY) and agents (wi
 The CLI isn't on npm yet. Install directly from GitHub:
 
 ```bash
-npm install -g github:<your-username>/clickstudio-control-center-cli
+npm install -g github:deifos/clickstudio-control-center-cli
 ```
 
 The package's `prepare` script builds on install, so no extra step is needed. Update later by re-running the same command, or pin a tag/branch with `github:user/repo#v0.2.0`.
