@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import { VERSION } from './version.js';
 import { OutputWriter, Format } from './output/writer.js';
-import { CLIError } from './output/errors.js';
-import { setBaseUrlOverride } from './config/config.js';
+import { CLIError, DryRunPreview } from './output/errors.js';
+import { setBaseUrlOverride, setDryRun } from './config/config.js';
 import { createAuthCommand } from './commands/auth.js';
 import { createOrgCommand } from './commands/org.js';
 import { createProjectsCommand } from './commands/projects.js';
@@ -39,6 +39,7 @@ export function run(): void {
     .option('--agent', 'Agent mode (alias for --quiet)')
     .option('-m, --md', 'Output as Markdown')
     .option('--base-url <url>', 'API base URL override')
+    .option('--dry-run', 'Print the request that WOULD be sent on writes (POST/PATCH/DELETE) and exit 0 without mutating data')
     .helpOption('--help', 'Show help for command')
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.opts();
@@ -46,6 +47,9 @@ export function run(): void {
       writer = new OutputWriter({ format });
       if (opts.baseUrl) {
         setBaseUrlOverride(opts.baseUrl);
+      }
+      if (opts.dryRun) {
+        setDryRun(true);
       }
     });
 
@@ -64,15 +68,34 @@ export function run(): void {
     try {
       await program.parseAsync(process.argv);
     } catch (error) {
+      if (!writer) {
+        writer = new OutputWriter({ format: Format.Auto });
+      }
+
+      if (error instanceof DryRunPreview) {
+        writer.ok(
+          {
+            dryRun: true,
+            method: error.method,
+            url: error.url,
+            body: error.body ?? null,
+          },
+          {
+            summary: `DRY RUN — would ${error.method} ${error.url}`,
+            notice: 'No data was mutated. Re-run without --dry-run to apply.',
+          },
+        );
+        process.exit(0);
+      }
+
       if (error instanceof CLIError) {
-        if (!writer) {
-          writer = new OutputWriter({ format: Format.Auto });
-        }
         writer.err(error);
         process.exit(error.exitCode);
       }
 
-      // Commander's own help/version errors
+      // Commander's own help/version errors. Must come AFTER the CLIError
+      // branch — CLIError also exposes an `exitCode` property, so this
+      // generic check would otherwise swallow it without printing anything.
       if (error instanceof Error && 'exitCode' in error) {
         const exitCode = (error as { exitCode: number }).exitCode;
         process.exit(exitCode);

@@ -53,3 +53,19 @@ export function errAPI(status: number, message: string): CLIError {
 export function errUsage(message: string, hint?: string): CLIError {
   return new CLIError(CodeUsage, message, hint);
 }
+
+// DryRunPreview is not really an error — it's a control-flow signal that
+// short-circuits a write before it hits the API. The CLI runner catches it,
+// renders the would-have-been request as a successful response, and exits 0.
+// Throwing-up-the-stack is cleaner than threading "preview mode" callbacks
+// through every command, since only the client knows the final URL/body.
+export class DryRunPreview extends Error {
+  constructor(
+    public readonly method: string,
+    public readonly url: string,
+    public readonly body: unknown,
+  ) {
+    super(`DRY RUN: ${method} ${url}`);
+    this.name = 'DryRunPreview';
+  }
+}

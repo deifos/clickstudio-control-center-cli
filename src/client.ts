@@ -1,6 +1,8 @@
 import { USER_AGENT } from './version.js';
-import { CLIError, errAuth, errForbidden, errRateLimit, errNetwork, errAPI } from './output/errors.js';
-import { CodeNotFound } from './output/codes.js';
+import { CLIError, DryRunPreview, errAuth, errForbidden, errRateLimit, errNetwork, errAPI } from './output/errors.js';
+import { CodeNotFound, CodeUsage } from './output/codes.js';
+import { isDryRun } from './config/config.js';
+import { pushNotices } from './output/notices.js';
 
 export interface WhoAmI {
   tokenId: string;
@@ -28,6 +30,10 @@ export interface UserSummary {
   isAgent?: boolean;
 }
 
+export interface MemberInfo extends UserSummary {
+  role: string;
+}
+
 export interface ProjectSummary {
   id: string;
   title: string;
@@ -38,6 +44,8 @@ export interface ProjectSummary {
   updatedAt: string;
   owner: UserSummary | null;
   taskCount: number;
+  isFavorite: boolean;
+  favoritedBy: UserSummary[];
 }
 
 export interface ProjectDetail extends Omit<ProjectSummary, 'taskCount'> {
@@ -125,6 +133,10 @@ export class CCCTLClient {
     return this.request<OrgInfo>('GET', '/api/agent/org');
   }
 
+  listMembers(): Promise<MemberInfo[]> {
+    return this.request<MemberInfo[]>('GET', '/api/agent/members');
+  }
+
   listProjects(): Promise<ProjectSummary[]> {
     return this.request<ProjectSummary[]>('GET', '/api/agent/projects');
   }
@@ -149,6 +161,14 @@ export class CCCTLClient {
     return this.request('PATCH', `/api/agent/projects/${encodeURIComponent(id)}`, data);
   }
 
+  setProjectFavorite(id: string, favorite?: boolean): Promise<{ id: string; isFavorite: boolean }> {
+    return this.request(
+      'POST',
+      `/api/agent/projects/${encodeURIComponent(id)}/favorite`,
+      favorite === undefined ? {} : { favorite },
+    );
+  }
+
   listTasks(projectId: string): Promise<TaskSummary[]> {
     return this.request('GET', `/api/agent/tasks?project=${encodeURIComponent(projectId)}`);
   }
@@ -165,6 +185,7 @@ export class CCCTLClient {
     status?: string;
     section?: string;
     assignToSelf?: boolean;
+    assigneeIds?: string[];
   }): Promise<TaskSummary> {
     return this.request('POST', '/api/agent/tasks', data);
   }
@@ -178,9 +199,14 @@ export class CCCTLClient {
       status?: string;
       section?: string;
       position?: number;
+      assigneeIds?: string[];
     },
   ): Promise<TaskSummary> {
     return this.request('PATCH', `/api/agent/tasks/${encodeURIComponent(id)}`, data);
+  }
+
+  deleteTask(id: string): Promise<{ ok: boolean; id: string; title: string }> {
+    return this.request('DELETE', `/api/agent/tasks/${encodeURIComponent(id)}`);
   }
 
   createLog(data: { projectId: string; text: string }): Promise<LogEntry> {
@@ -225,6 +251,14 @@ export class CCCTLClient {
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+
+    // Dry-run only intercepts mutating verbs. Reads still hit the API so
+    // alias/project resolvers and read-modify-write commands can compute
+    // the correct payload before bailing out at the actual write.
+    if (isDryRun() && method !== 'GET') {
+      throw new DryRunPreview(method, url, body);
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -255,12 +289,26 @@ export class CCCTLClient {
           (parsed && typeof parsed === 'object' && 'error' in parsed
             ? String((parsed as { error: unknown }).error)
             : null) ?? text ?? `HTTP ${res.status}`;
-        const hint =
-          parsed && typeof parsed === 'object' && 'hint' in parsed
-            ? String((parsed as { hint: unknown }).hint)
-            : undefined;
+        const obj = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+        const baseHint = obj && typeof obj.hint === 'string' ? obj.hint : undefined;
+        // F2: backend now sends `field` on validation errors. Prepend it to
+        // the hint so the user knows which input is bad without parsing the
+        // message string.
+        const field = obj && typeof obj.field === 'string' ? obj.field : undefined;
+        const hint = field
+          ? baseHint
+            ? `field: ${field} — ${baseHint}`
+            : `field: ${field}`
+          : baseHint;
 
         switch (res.status) {
+          case 400:
+            // Validation errors are the caller's fault, not the API's. Use
+            // the usage_error code so the exit (1) lines up with how
+            // commander handles unknown-flag errors. The hint already
+            // carries the `field:` prefix when the server provided one,
+            // making the failure self-explanatory.
+            throw new CLIError(CodeUsage, errorMessage, hint);
           case 401:
             throw errAuth(errorMessage);
           case 403:
@@ -274,6 +322,16 @@ export class CCCTLClient {
           default:
             throw errAPI(res.status, errorMessage);
         }
+      }
+
+      // F1: backend may attach `warnings: string[]` to write responses to
+      // surface fields it silently dropped. Strip them off the typed object
+      // and push into the per-invocation notice queue so the writer renders
+      // them without every command having to plumb a notice param.
+      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { warnings?: unknown }).warnings)) {
+        const warns = (parsed as { warnings: unknown[] }).warnings;
+        pushNotices(warns.filter((w): w is string => typeof w === 'string'));
+        delete (parsed as { warnings?: unknown }).warnings;
       }
 
       return parsed as T;

@@ -1,6 +1,17 @@
 import type { ResponseOptions, SuccessResponse, ErrorResponse } from './envelope.js';
+import { SCHEMA_VERSION } from './envelope.js';
 import { CLIError } from './errors.js';
 import { renderStyledResponse, renderStyledError } from './styled.js';
+import { drainNotices } from './notices.js';
+
+// Combine the command's own notice with any queued notices (e.g. server
+// warnings collected by the HTTP client). Joined with " • " so multiple
+// items stay on a single line in styled mode.
+function mergeNotice(notice: string | undefined): string | undefined {
+  const queued = drainNotices();
+  const all = notice ? [notice, ...queued] : queued;
+  return all.length > 0 ? all.join(' • ') : undefined;
+}
 
 export enum Format {
   Auto = 'auto',
@@ -42,20 +53,21 @@ export class OutputWriter {
 
   ok<T>(data: T, opts: ResponseOptions = {}): void {
     const format = this.effectiveFormat();
+    const merged: ResponseOptions = { ...opts, notice: mergeNotice(opts.notice) };
 
     switch (format) {
       case Format.JSON:
-        this.renderJSON(data, opts);
+        this.renderJSON(data, merged);
         break;
       case Format.Quiet:
         this.renderQuiet(data);
         break;
       case Format.Markdown:
-        this.renderMarkdown(data, opts);
+        this.renderMarkdown(data, merged);
         break;
       case Format.Styled:
       default:
-        renderStyledResponse(data, opts);
+        renderStyledResponse(data, merged);
         break;
     }
   }
@@ -66,6 +78,7 @@ export class OutputWriter {
     if (format === Format.JSON || format === Format.Quiet) {
       const envelope: ErrorResponse = {
         ok: false,
+        schemaVersion: SCHEMA_VERSION,
         error: error.message,
         code: error.code,
         hint: error.hint,
@@ -79,6 +92,7 @@ export class OutputWriter {
   private renderJSON<T>(data: T, opts: ResponseOptions): void {
     const envelope: SuccessResponse<T> = {
       ok: true,
+      schemaVersion: SCHEMA_VERSION,
       data,
       summary: opts.summary,
       notice: opts.notice,

@@ -15,6 +15,16 @@ export function setBaseUrlOverride(url: string): void {
   baseUrlOverride = url;
 }
 
+let dryRun = false;
+
+export function setDryRun(v: boolean): void {
+  dryRun = v;
+}
+
+export function isDryRun(): boolean {
+  return dryRun;
+}
+
 export function configDir(): string {
   return join(homedir(), '.config', 'clickstudio');
 }

@@ -61,20 +61,36 @@ ccctl doctor                       # reachability + identity check (CI-safe; exi
 # Org
 ccctl org info
 
-# Projects
+# Projects (commands accept ID or title — substring match if unambiguous)
 ccctl projects list
-ccctl projects get <id>
+ccctl projects list --favorites                               # only your own favorites
+ccctl projects list --favorited-by @vlad                      # see what Vlad is working on
+ccctl projects get <id-or-title>                              # e.g. "Family Photoshoot AI" or "Family"
 ccctl projects create --title "My new project"
-ccctl projects update <id> --state "In Build"
+ccctl projects update <id-or-title> --state "In Build"
+ccctl projects favorite <id-or-title>                         # alias: star
+ccctl projects unfavorite <id-or-title>                       # alias: unstar
 
-# Tasks
-ccctl tasks list --project <project-id>
-ccctl tasks get <task-id>
-ccctl tasks create --project <project-id> --title "Wire up auth" --status todo
-ccctl tasks update <task-id> --status doing
+# Tasks (--project and the task <ref> accept ID or title)
+ccctl tasks list --project "Family Photoshoot AI"             # title works anywhere --project does
+ccctl tasks list --project "Family Photoshoot AI" --status todo
+ccctl tasks list --project "Family Photoshoot AI" --status todo --assignee @vlad --section Product
+ccctl tasks get <id-or-title> --project "Family Photoshoot AI"
+ccctl tasks create --project "Family Photoshoot AI" --title "Wire up auth" --status todo
+ccctl tasks create --project "Family Photoshoot AI" --title "Deploy" --assignee @vlad
+ccctl tasks create --project "Family Photoshoot AI" --title "QA" --assignee @vlad --assignee @matteo
+ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --status doing
+ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --assignee @matteo
+ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --add-assignee @rolino
+ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --remove-assignee @vlad
+ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --append-description "Update: deployed"
+ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --prepend-description "URGENT: "
+ccctl tasks delete <id-or-title> --project "Family Photoshoot AI"
+ccctl tasks delete <id-or-title> --project "Family Photoshoot AI" --yes
+ccctl tasks rm <id-or-title> --project "Family Photoshoot AI" --yes
 
 # Logs
-ccctl logs create --project <project-id> --message "Shipped homepage v2"
+ccctl logs create --project "Family Photoshoot AI" --message "Shipped homepage v2"
 
 # Ideas
 ccctl ideas list                          # all ideas in the org
@@ -92,17 +108,114 @@ ccctl mentions ack-all                    # mark every unread as read
 
 Humans can `@`-mention the agent in tasks, notes, and project log entries the same way they mention each other (the agent shows up in the picker as `🤖 <name>`). The agent receives those mentions via `ccctl mentions list --unread` — a natural place to poll before deciding what to do next.
 
+### Assigning work
+
+`--assignee` resolves the alias against the org member list (`/api/agent/members`, `org:read` scope). Resolution order:
+
+1. Exact user ID — full CUID/auth ID match.
+2. Case-insensitive exact `name`.
+3. Case-insensitive exact email local-part, including chunks split on `.` `_` `-` (so `vlad.palacio@…` matches `vlad`, `palacio`, and `vlad.palacio`).
+4. Case-insensitive unique prefix on `name` (≥3 characters).
+
+A `0` or `>1` match prints a candidate list and exits with code `1`. The leading `@` is optional — `--assignee vlad` and `--assignee @vlad` are equivalent. Pass `--assignee-id <userId>` to skip resolution entirely.
+
+If you give the create command any `--assignee` / `--assignee-id`, the agent will **not** auto-assign itself. Pass them with no `--assignee` (or with `--assign-self`) for the legacy "claim it for me" behavior.
+
+`--assignee` on update is a full **replace**. `--add-assignee` and `--remove-assignee` are additive/subtractive (the CLI does a read-modify-write internally). The two modes are mutually exclusive in one invocation.
+
+### Discovery: title and substring lookup
+
+Anywhere a command takes a project (`--project <ref>`, or the positional argument on `projects get/update`) or a task (`tasks get/update/delete <ref>`), you can pass either an ID or a title. Resolution order:
+
+1. **ID** — anything that looks like a database ID (≥20 alphanumeric or UUID with hyphens) is used as-is, no API call.
+2. **Exact title** (case-insensitive) — most reliable.
+3. **Substring** (case-insensitive) — only used if exactly one match.
+
+Ambiguity or zero matches print a candidate list and exit non-zero, so an agent never silently picks the wrong project. Title resolution for `tasks get/update/delete` requires `--project` so we don't fan out across every project.
+
+### Filtering `tasks list`
+
+`tasks list` supports filters that combine with AND:
+
+- `--status <columnId>` — `todo`, `doing`/`in-progress`, `done`, etc.
+- `--assignee <handle>` — repeatable; matches if **any** listed assignee is on the task. Same alias resolver as `--assignee` on create/update.
+- `--section <name>` — case-insensitive exact match (`Product`, `Marketing`, …).
+
+Filters are applied client-side; for very large projects this is fine but expect the request to fetch the full task list first.
+
+### Favorites
+
+Each user (humans and agents) can star projects. The agent's CLI exposes both ends:
+
+- **What you starred** — `ccctl projects list --favorites` filters to projects this token has favorited. `ccctl projects favorite <ref>` / `unfavorite <ref>` toggles.
+- **What others starred** — `ccctl projects list --favorited-by @vlad` shows what Vlad has open. Repeat the flag to OR multiple users. Useful for an agent to answer "what's the team focused on this week?".
+
+Each project in `projects list` / `projects get` carries `isFavorite: bool` (this agent's perspective) and `favoritedBy: [User]` (everyone who starred it). The TTY render shows a yellow `★` next to favorited rows and a stars-count column.
+
+### Server-side warnings (silently dropped fields)
+
+If you POST/PATCH a body with a field the API doesn't recognise (typo, removed param, wrong scope), the response now carries `warnings: ["Unknown field 'foo' was ignored …"]`. The CLI strips this from the typed response and surfaces it as a yellow notice — so an unrecognised field never silently disappears. Validation errors also include a `field` name on the JSON error response, which the CLI surfaces in the `hint` line as `field: <name> — <hint>`.
+
+### Plain `@handle` warning
+
+The dashboard renders `@`-mentions from tiptap markup (`@[Name](userId)`). Plain `@vlad` text in a description is **not** parsed — it neither notifies the mentioned user nor sets them as an assignee. To prevent that silent failure, the CLI scans the description on `tasks create` / `tasks update` and surfaces a notice when it sees plain `@handle` patterns but no `--assignee` flag was given. The notice appears in the `notice` field of the JSON envelope and as a yellow warning line in the styled and Markdown renders. Pass `--assignee @vlad` (or `--add-assignee`) to fix.
+
 ## Output modes
 
 | Flag       | Behavior                                                       |
 | ---------- | -------------------------------------------------------------- |
 | _(none)_   | Pretty colored output in a TTY, JSON envelope when piped       |
-| `--json`   | Force JSON envelope: `{ ok, data, summary, breadcrumbs }`      |
+| `--json`   | Force JSON envelope (see schema below)                          |
 | `--agent`  | Raw JSON only (no envelope) — for AI agents                    |
 | `--quiet`  | Same as `--agent`                                              |
 | `--md`     | Markdown output (no ANSI codes, safe to pipe into rendering)   |
 
 In TTY mode, each command renders its own table or detail block; the writer adds a summary line and breadcrumb hints. `--md` uses a structured markdown render. `--json` and `--agent` never render to stdout outside the envelope.
+
+### JSON envelope
+
+Success:
+
+```json
+{
+  "ok": true,
+  "schemaVersion": "1",
+  "data": <command-specific shape>,
+  "summary": "human-readable headline",
+  "notice": "yellow warning, optional",
+  "breadcrumbs": [{ "action": "...", "cmd": "ccctl ..." }]
+}
+```
+
+Error (also exits non-zero):
+
+```json
+{
+  "ok": false,
+  "schemaVersion": "1",
+  "error": "human-readable message",
+  "code": "usage_error | not_found | auth_error | forbidden | rate_limit | network_error | api_error",
+  "hint": "optional remediation hint"
+}
+```
+
+`schemaVersion` is bumped only on breaking changes (renamed/dropped fields, or a type change on `data`). Adding new optional fields does **not** bump it. Agents can branch on this value to stay forward-compatible.
+
+The `data` shape per command is whatever the underlying API returns — see [`src/client.ts`](src/client.ts) for the TypeScript definitions.
+
+## Dry-run
+
+Add `--dry-run` (global flag) to any write — `tasks create`, `tasks update`, `tasks delete`, `projects create`, `projects update`, `logs create`, `ideas create`, `mentions ack`, etc. The CLI:
+
+1. Performs all read-side work (alias resolution, project/task lookup, fetching the current state for `--add-assignee` or `--append-description`).
+2. Builds the **exact** body it would send.
+3. Prints `{ method, url, body }` in your chosen output format and exits `0` without calling the API.
+
+```bash
+ccctl --dry-run tasks create --project "Family Photoshoot AI" --title "Deploy" --assignee @vlad --json
+```
+
+`GET` requests are not intercepted — they always run, since they are needed for resolution and read-modify-write.
 
 ## Environment variables
 
@@ -139,13 +252,15 @@ Use `ccctl doctor` as a healthcheck — it exits non-zero if the token is missin
 
 ## Exit codes
 
-| Code | Meaning            |
-| ---- | ------------------ |
-| 0    | Success            |
-| 1    | Usage error        |
-| 2    | Not found          |
-| 3    | Authentication     |
-| 4    | Forbidden / scope  |
-| 5    | Rate limited       |
-| 6    | Network error      |
-| 7    | API error          |
+| Code | Meaning           | When                                                                |
+| ---- | ----------------- | ------------------------------------------------------------------- |
+| 0    | Success           | Including `--dry-run`                                                |
+| 1    | Usage error       | Bad/missing flag, ambiguous alias, or HTTP `400` (validation)        |
+| 2    | Not found         | HTTP `404`                                                           |
+| 3    | Authentication    | HTTP `401`                                                           |
+| 4    | Forbidden / scope | HTTP `403`                                                           |
+| 5    | Rate limited      | HTTP `429`                                                           |
+| 6    | Network error     | DNS failure, timeout, connection refused                             |
+| 7    | API error         | Any other non-2xx (5xx, unexpected statuses)                         |
+
+`400` is mapped to `usage_error` rather than `api_error` because validation failures are caused by the caller, not the server. Combined with the `field: <name>` prefix in the error hint (added by F2), an agent can branch on exit code 1 + the `field` value to retry with a corrected payload.
