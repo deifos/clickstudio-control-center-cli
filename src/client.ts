@@ -73,6 +73,16 @@ export interface LogEntry {
   createdAt: string;
 }
 
+export interface NoteSummary {
+  id: string;
+  title: string;
+  content: string;
+  projectId: string;
+  author: UserSummary | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IdeaSummary {
   id: string;
   title: string;
@@ -207,6 +217,26 @@ export class CCCTLClient {
 
   deleteTask(id: string): Promise<{ ok: boolean; id: string; title: string }> {
     return this.request('DELETE', `/api/agent/tasks/${encodeURIComponent(id)}`);
+  }
+
+  listNotes(projectId: string): Promise<NoteSummary[]> {
+    return this.request('GET', `/api/agent/notes?project=${encodeURIComponent(projectId)}`);
+  }
+
+  getNote(id: string): Promise<NoteSummary> {
+    return this.request('GET', `/api/agent/notes/${encodeURIComponent(id)}`);
+  }
+
+  createNote(data: { projectId: string; title?: string; content?: string }): Promise<NoteSummary> {
+    return this.request('POST', '/api/agent/notes', data);
+  }
+
+  updateNote(id: string, data: { title?: string; content?: string }): Promise<NoteSummary> {
+    return this.request('PATCH', `/api/agent/notes/${encodeURIComponent(id)}`, data);
+  }
+
+  deleteNote(id: string): Promise<{ ok: boolean; id: string; title: string }> {
+    return this.request('DELETE', `/api/agent/notes/${encodeURIComponent(id)}`);
   }
 
   createLog(data: { projectId: string; text: string }): Promise<LogEntry> {

@@ -92,6 +92,14 @@ ccctl tasks rm <id-or-title> --project "Family Photoshoot AI" --yes
 # Logs
 ccctl logs create --project "Family Photoshoot AI" --message "Shipped homepage v2"
 
+# Notes (long-form context per project)
+ccctl notes list --project "Family Photoshoot AI"
+ccctl notes get <id-or-title> --project "Family Photoshoot AI"
+ccctl notes create --project "Family Photoshoot AI" --title "Stack notes" --content "..."
+ccctl notes update <id-or-title> --project "Family Photoshoot AI" --content "..."
+ccctl notes delete <id-or-title> --project "Family Photoshoot AI" --yes
+ccctl notes rm <id-or-title> --project "Family Photoshoot AI" --yes
+
 # Ideas
 ccctl ideas list                          # all ideas in the org
 ccctl ideas list --status Pending         # only Pending ideas
@@ -231,7 +239,7 @@ You can also override the base URL per-invocation with `--base-url <url>`.
 
 Tokens carry a coarse scope set:
 
-- **Project-scoped:** `projects:read`, `projects:write`, `tasks:read`, `tasks:write`, `logs:write`
+- **Project-scoped:** `projects:read`, `projects:write`, `tasks:read`, `tasks:write`, `notes:read`, `notes:write`, `logs:write`
 - **Org-wide:** `org:read`, `ideas:read`, `ideas:write`
 
 A token can also carry a `projectIds` allow-list to constrain it to specific projects. Project-scoped tokens cannot create new projects and cannot read/write outside their allow-list. **Org-wide scopes cannot be combined with `projectIds`** — the dashboard rejects mints that try, since the project allow-list wouldn't apply to org-level resources. If you need both, mint two separate tokens.

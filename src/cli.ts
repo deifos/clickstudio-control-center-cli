@@ -8,6 +8,7 @@ import { createOrgCommand } from './commands/org.js';
 import { createProjectsCommand } from './commands/projects.js';
 import { createTasksCommand } from './commands/tasks.js';
 import { createLogsCommand } from './commands/logs.js';
+import { createNotesCommand } from './commands/notes.js';
 import { createIdeasCommand } from './commands/ideas.js';
 import { createMentionsCommand } from './commands/mentions.js';
 import { createDoctorCommand } from './commands/doctor.js';
@@ -58,6 +59,7 @@ export function run(): void {
   program.addCommand(createProjectsCommand(getWriter));
   program.addCommand(createTasksCommand(getWriter));
   program.addCommand(createLogsCommand(getWriter));
+  program.addCommand(createNotesCommand(getWriter));
   program.addCommand(createIdeasCommand(getWriter));
   program.addCommand(createMentionsCommand(getWriter));
   program.addCommand(createDoctorCommand(getWriter));
