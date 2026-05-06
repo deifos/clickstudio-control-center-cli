@@ -65,40 +65,40 @@ ccctl org info
 ccctl projects list
 ccctl projects list --favorites                               # only your own favorites
 ccctl projects list --favorited-by @vlad                      # see what Vlad is working on
-ccctl projects get <id-or-title>                              # e.g. "Family Photoshoot AI" or "Family"
+ccctl projects get <id-or-title>                              # e.g. "Acme Web" or "Family"
 ccctl projects create --title "My new project"
 ccctl projects update <id-or-title> --state "In Build"
 ccctl projects favorite <id-or-title>                         # alias: star
 ccctl projects unfavorite <id-or-title>                       # alias: unstar
 
 # Tasks (--project and the task <ref> accept ID or title)
-ccctl tasks list --project "Family Photoshoot AI"             # title works anywhere --project does
-ccctl tasks list --project "Family Photoshoot AI" --status todo
-ccctl tasks list --project "Family Photoshoot AI" --status todo --assignee @vlad --section Product
-ccctl tasks get <id-or-title> --project "Family Photoshoot AI"
-ccctl tasks create --project "Family Photoshoot AI" --title "Wire up auth" --status todo
-ccctl tasks create --project "Family Photoshoot AI" --title "Deploy" --assignee @vlad
-ccctl tasks create --project "Family Photoshoot AI" --title "QA" --assignee @vlad --assignee @matteo
-ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --status doing
-ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --assignee @matteo
-ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --add-assignee @rolino
-ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --remove-assignee @vlad
-ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --append-description "Update: deployed"
-ccctl tasks update <id-or-title> --project "Family Photoshoot AI" --prepend-description "URGENT: "
-ccctl tasks delete <id-or-title> --project "Family Photoshoot AI"
-ccctl tasks delete <id-or-title> --project "Family Photoshoot AI" --yes
-ccctl tasks rm <id-or-title> --project "Family Photoshoot AI" --yes
+ccctl tasks list --project "Acme Web"             # title works anywhere --project does
+ccctl tasks list --project "Acme Web" --status todo
+ccctl tasks list --project "Acme Web" --status todo --assignee @vlad --section Product
+ccctl tasks get <id-or-title> --project "Acme Web"
+ccctl tasks create --project "Acme Web" --title "Wire up auth" --status todo
+ccctl tasks create --project "Acme Web" --title "Deploy" --assignee @vlad
+ccctl tasks create --project "Acme Web" --title "QA" --assignee @vlad --assignee @alex
+ccctl tasks update <id-or-title> --project "Acme Web" --status doing
+ccctl tasks update <id-or-title> --project "Acme Web" --assignee @alex
+ccctl tasks update <id-or-title> --project "Acme Web" --add-assignee @bot
+ccctl tasks update <id-or-title> --project "Acme Web" --remove-assignee @vlad
+ccctl tasks update <id-or-title> --project "Acme Web" --append-description "Update: deployed"
+ccctl tasks update <id-or-title> --project "Acme Web" --prepend-description "URGENT: "
+ccctl tasks delete <id-or-title> --project "Acme Web"
+ccctl tasks delete <id-or-title> --project "Acme Web" --yes
+ccctl tasks rm <id-or-title> --project "Acme Web" --yes
 
 # Logs
-ccctl logs create --project "Family Photoshoot AI" --message "Shipped homepage v2"
+ccctl logs create --project "Acme Web" --message "Shipped homepage v2"
 
 # Notes (long-form context per project)
-ccctl notes list --project "Family Photoshoot AI"
-ccctl notes get <id-or-title> --project "Family Photoshoot AI"
-ccctl notes create --project "Family Photoshoot AI" --title "Stack notes" --content "..."
-ccctl notes update <id-or-title> --project "Family Photoshoot AI" --content "..."
-ccctl notes delete <id-or-title> --project "Family Photoshoot AI" --yes
-ccctl notes rm <id-or-title> --project "Family Photoshoot AI" --yes
+ccctl notes list --project "Acme Web"
+ccctl notes get <id-or-title> --project "Acme Web"
+ccctl notes create --project "Acme Web" --title "Stack notes" --content "..."
+ccctl notes update <id-or-title> --project "Acme Web" --content "..."
+ccctl notes delete <id-or-title> --project "Acme Web" --yes
+ccctl notes rm <id-or-title> --project "Acme Web" --yes
 
 # Ideas
 ccctl ideas list                          # all ideas in the org
@@ -122,7 +122,7 @@ Humans can `@`-mention the agent in tasks, notes, and project log entries the sa
 
 1. Exact user ID — full CUID/auth ID match.
 2. Case-insensitive exact `name`.
-3. Case-insensitive exact email local-part, including chunks split on `.` `_` `-` (so `vlad.palacio@…` matches `vlad`, `palacio`, and `vlad.palacio`).
+3. Case-insensitive exact email local-part, including chunks split on `.` `_` `-` (so `jane.doe@…` matches `jane`, `doe`, and `jane.doe`).
 4. Case-insensitive unique prefix on `name` (≥3 characters).
 
 A `0` or `>1` match prints a candidate list and exits with code `1`. The leading `@` is optional — `--assignee vlad` and `--assignee @vlad` are equivalent. Pass `--assignee-id <userId>` to skip resolution entirely.
@@ -220,7 +220,7 @@ Add `--dry-run` (global flag) to any write — `tasks create`, `tasks update`, `
 3. Prints `{ method, url, body }` in your chosen output format and exits `0` without calling the API.
 
 ```bash
-ccctl --dry-run tasks create --project "Family Photoshoot AI" --title "Deploy" --assignee @vlad --json
+ccctl --dry-run tasks create --project "Acme Web" --title "Deploy" --assignee @vlad --json
 ```
 
 `GET` requests are not intercepted — they always run, since they are needed for resolution and read-modify-write.
@@ -257,6 +257,19 @@ ExecStart=/usr/bin/node /opt/my-agent/index.js
 ```
 
 Use `ccctl doctor` as a healthcheck — it exits non-zero if the token is missing, expired, revoked, or the API is unreachable.
+
+## Versioning
+
+`ccctl` follows [semver](https://semver.org/). The CLI version is what `ccctl --version` prints. Two separate version surfaces:
+
+- **Package version** (`package.json`, `--version`) — bumps per release. **MAJOR** for breaking changes (renamed/removed flags, exit-code remapping, envelope shape changes), **MINOR** for additive features, **PATCH** for fixes.
+- **Wire schema** (`schemaVersion` on every JSON envelope) — currently `"1"`. Bumps only on incompatible envelope shape changes. Independent of the package version. Agents can branch on this value to stay forward-compatible.
+
+The full per-version log lives in [`CHANGELOG.md`](CHANGELOG.md). Pin a specific version on install with:
+
+```bash
+npm install -g github:deifos/clickstudio-control-center-cli#v1.0.0
+```
 
 ## Exit codes
 

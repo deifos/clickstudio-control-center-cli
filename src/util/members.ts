@@ -12,7 +12,7 @@ export function normalizeAlias(s: string): string {
 //   1. Exact id match
 //   2. Case-insensitive exact name
 //   3. Case-insensitive exact email local-part, including chunks split on
-//      ./_/- (so `vlad.palacio@…` matches `vlad`, `palacio`, and the full
+//      ./_/- (so `jane.doe@…` matches `jane`, `doe`, and the full
 //      local-part)
 //   4. Case-insensitive unique prefix on name (≥3 chars)
 // On 0 or 2+ matches, returns null — the caller surfaces a candidate list.
@@ -78,7 +78,7 @@ export function findPlainHandles(text: string): string[] {
 }
 
 // Per-invocation cache so a single CLI call only fetches members once even if
-// it resolves multiple aliases (e.g. --assignee @vlad --assignee @matteo).
+// it resolves multiple aliases (e.g. --assignee @vlad --assignee @alex).
 let cachedMembers: MemberInfo[] | null = null;
 export async function loadMembers(client: CCCTLClient): Promise<MemberInfo[]> {
   if (cachedMembers) return cachedMembers;

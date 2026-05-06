@@ -30,7 +30,7 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
   tasks
     .command('list')
     .description('List tasks for a project (filters combine with AND)')
-    .requiredOption('--project <ref>', 'Project ID or title (e.g. "Family Photoshoot AI")')
+    .requiredOption('--project <ref>', 'Project ID or title (e.g. "Acme Web")')
     .option('--status <columnId>', 'Filter by column (todo, doing, done, ...)')
     .option('--assignee <handle>', 'Filter by assignee — repeatable; matches if ANY listed assignee is on the task', collectMany, [] as string[])
     .option('--section <name>', 'Filter by section (case-insensitive)')
@@ -131,7 +131,7 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
     .option('--section <section>', 'Section (Product, Marketing)', 'Product')
     .option(
       '--assignee <handle>',
-      'Assign by handle (@vlad, @matteo) — repeatable, resolves via /api/agent/members',
+      'Assign by handle (@vlad, @alex) — repeatable, resolves via /api/agent/members',
       collectMany,
       [] as string[],
     )
@@ -196,7 +196,7 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
     .option('--section <section>', 'New section (Product, Marketing)')
     .option(
       '--assignee <handle>',
-      'Replace assignees with this set (repeatable: @vlad, @matteo)',
+      'Replace assignees with this set (repeatable: @vlad, @alex)',
       collectMany,
       [] as string[],
     )
