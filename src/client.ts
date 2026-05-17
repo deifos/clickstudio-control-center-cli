@@ -109,6 +109,27 @@ export interface IdeaDetail extends IdeaSummary {
   nameSuggestions: IdeaNameSuggestion[];
 }
 
+// Wiki author is intentionally email-less — the server hardening on
+// /api/wiki and /api/agent/wiki only exposes id/name/image/isAgent to avoid
+// leaking author emails to wiki readers.
+export interface WikiAuthor {
+  id: string;
+  name: string | null;
+  image: string | null;
+  isAgent: boolean;
+}
+
+export interface WikiEntrySummary {
+  id: string;
+  title: string;
+  links: string;
+  content: string;
+  tags: string;
+  createdAt: string;
+  updatedAt: string;
+  author: WikiAuthor | null;
+}
+
 export interface NotificationItem {
   id: string;
   type: string;
@@ -261,6 +282,38 @@ export class CCCTLClient {
     links?: string | string[];
   }): Promise<IdeaSummary> {
     return this.request('POST', '/api/agent/ideas', data);
+  }
+
+  listWiki(opts: { search?: string; limit?: number } = {}): Promise<WikiEntrySummary[]> {
+    const params = new URLSearchParams();
+    if (opts.search) params.set('search', opts.search);
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const qs = params.toString();
+    return this.request('GET', `/api/agent/wiki${qs ? `?${qs}` : ''}`);
+  }
+
+  getWikiEntry(id: string): Promise<WikiEntrySummary> {
+    return this.request('GET', `/api/agent/wiki/${encodeURIComponent(id)}`);
+  }
+
+  createWikiEntry(data: {
+    title?: string;
+    links?: string;
+    content?: string;
+    tags?: string;
+  }): Promise<WikiEntrySummary> {
+    return this.request('POST', '/api/agent/wiki', data);
+  }
+
+  updateWikiEntry(
+    id: string,
+    data: { title?: string; links?: string; content?: string; tags?: string },
+  ): Promise<WikiEntrySummary> {
+    return this.request('PATCH', `/api/agent/wiki/${encodeURIComponent(id)}`, data);
+  }
+
+  deleteWikiEntry(id: string): Promise<{ ok: boolean; id: string; title: string }> {
+    return this.request('DELETE', `/api/agent/wiki/${encodeURIComponent(id)}`);
   }
 
   listNotifications(opts: { unread?: boolean; limit?: number } = {}): Promise<NotificationItem[]> {

@@ -11,6 +11,7 @@ import { createLogsCommand } from './commands/logs.js';
 import { createNotesCommand } from './commands/notes.js';
 import { createIdeasCommand } from './commands/ideas.js';
 import { createMentionsCommand } from './commands/mentions.js';
+import { createWikiCommand } from './commands/wiki.js';
 import { createDoctorCommand } from './commands/doctor.js';
 
 let writer: OutputWriter;
@@ -62,6 +63,7 @@ export function run(): void {
   program.addCommand(createNotesCommand(getWriter));
   program.addCommand(createIdeasCommand(getWriter));
   program.addCommand(createMentionsCommand(getWriter));
+  program.addCommand(createWikiCommand(getWriter));
   program.addCommand(createDoctorCommand(getWriter));
 
   program.exitOverride();

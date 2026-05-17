@@ -8,6 +8,15 @@ All notable changes to `ccctl` are tracked here. The CLI follows [semver](https:
 
 The wire format is also versioned via the `schemaVersion` field on every JSON envelope. That value (currently `"1"`) is bumped only on incompatible envelope changes — it's independent of the package version.
 
+## 1.1.0 — 2026-05-16
+
+### Added — wiki
+- New scopes: `wiki:read` and `wiki:write` (both org-wide, like `ideas:*`). Combining either with `--project` scoping is rejected at mint time.
+- New `wiki` command group: `list`, `get`, `create`, `update`, `delete` (alias `rm`).
+- `wiki list --search <text> --limit <n>` filters case-insensitively across title/links/content/tags.
+- `wiki get|update|delete <ref>` accepts either a cuid-style ID or a title (exact match preferred, falls back to substring).
+- Existing tokens must be re-minted to gain wiki access — they don't auto-acquire new scopes.
+
 ## 1.0.0 — 2026-05-06
 
 First stable release. Backfills the work done since the `0.1.0` baseline into a single signed-off version. Future batches will bump per-batch.
