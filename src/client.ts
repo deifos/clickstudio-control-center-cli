@@ -200,6 +200,10 @@ export class CCCTLClient {
     );
   }
 
+  listTaskColumns(): Promise<{ id: string; label: string }[]> {
+    return this.request('GET', '/api/agent/tasks/columns');
+  }
+
   listTasks(projectId: string): Promise<TaskSummary[]> {
     return this.request('GET', `/api/agent/tasks?project=${encodeURIComponent(projectId)}`);
   }

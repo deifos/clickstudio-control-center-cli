@@ -28,10 +28,46 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
   const tasks = new Command('tasks').alias('task').description('Manage tasks');
 
   tasks
+    .command('columns')
+    .description('List valid task column ids — pass these to --status verbatim')
+    .action(async () => {
+      const writer = getWriter();
+      const client = requireClient();
+
+      const data = await client.listTaskColumns();
+
+      if (writer.isStyled()) {
+        if (data.length === 0) {
+          console.log(brand.muted('  No columns'));
+        } else {
+          const idW = Math.max(2, ...data.map((c) => c.id.length));
+          console.log();
+          for (const c of data) {
+            console.log(`  ${brand.bold(c.id.padEnd(idW))}  ${brand.muted(c.label)}`);
+          }
+          console.log();
+        }
+      }
+
+      writer.ok(data, {
+        summary: `${data.length} column${data.length === 1 ? '' : 's'}`,
+        breadcrumbs:
+          data.length > 0
+            ? [
+                {
+                  action: 'Move a task to this column',
+                  cmd: `ccctl tasks update <id> --status ${data[0]!.id}`,
+                },
+              ]
+            : [],
+      });
+    });
+
+  tasks
     .command('list')
     .description('List tasks for a project (filters combine with AND)')
     .requiredOption('--project <ref>', 'Project ID or title (e.g. "Acme Web")')
-    .option('--status <columnId>', 'Filter by column (todo, doing, done, ...)')
+    .option('--status <columnId>', 'Filter by column id — exact match (run `ccctl tasks columns` to list valid ids)')
     .option('--assignee <handle>', 'Filter by assignee — repeatable; matches if ANY listed assignee is on the task', collectMany, [] as string[])
     .option('--section <name>', 'Filter by section (case-insensitive)')
     .action(async (opts) => {
@@ -92,7 +128,7 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
           data.length > 0
             ? [
                 { action: 'Get task', cmd: `ccctl tasks get ${data[0]!.id}` },
-                { action: 'Update status', cmd: `ccctl tasks update ${data[0]!.id} --status doing` },
+                { action: 'Update status', cmd: `ccctl tasks update ${data[0]!.id} --status in-progress` },
               ]
             : [
                 {
@@ -127,7 +163,7 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
     .requiredOption('--project <ref>', 'Project ID or title')
     .requiredOption('--title <title>', 'Task title')
     .option('--description <text>', 'Task description')
-    .option('--status <columnId>', 'Initial column (todo, doing, done, ...)', 'todo')
+    .option('--status <columnId>', 'Initial column id (run `ccctl tasks columns` to list valid ids)', 'todo')
     .option('--section <section>', 'Section (Product, Marketing)', 'Product')
     .option(
       '--assignee <handle>',
@@ -178,7 +214,7 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
         summary: `Created task "${created.title}"`,
         notice: plainHandleNotice(opts.description, userSetAssignees),
         breadcrumbs: [
-          { action: 'Move to doing', cmd: `ccctl tasks update ${created.id} --status doing` },
+          { action: 'Move to in-progress', cmd: `ccctl tasks update ${created.id} --status in-progress` },
           { action: 'Mark done', cmd: `ccctl tasks update ${created.id} --status done` },
         ],
       });
@@ -192,7 +228,7 @@ export function createTasksCommand(getWriter: () => OutputWriter): Command {
     .option('--description <text>', 'Replace description with this text')
     .option('--append-description <text>', 'Append text to the existing description (separator: blank line)')
     .option('--prepend-description <text>', 'Prepend text to the existing description (separator: blank line)')
-    .option('--status <columnId>', 'New column (todo, doing, done, ...)')
+    .option('--status <columnId>', 'New column id (run `ccctl tasks columns` to list valid ids)')
     .option('--section <section>', 'New section (Product, Marketing)')
     .option(
       '--assignee <handle>',

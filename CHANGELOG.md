@@ -8,6 +8,16 @@ All notable changes to `ccctl` are tracked here. The CLI follows [semver](https:
 
 The wire format is also versioned via the `schemaVersion` field on every JSON envelope. That value (currently `"1"`) is bumped only on incompatible envelope changes — it's independent of the package version.
 
+## 1.2.0 — 2026-05-19
+
+### Added — task columns discovery
+- New `ccctl tasks columns` subcommand prints the valid column ids the board recognises (today: `todo`, `in-progress`, `done`). Pass any of these to `--status` verbatim.
+- `--status` help text on `tasks list`, `tasks create`, and `tasks update` now points at `tasks columns` instead of listing examples — the old examples included `doing`, which is not a real column and was silently accepted by the server, leaving the task invisible on the board.
+
+### Changed
+- Server now rejects unknown `--status` / `columnId` values with a 400. Previously they were persisted and the board would skip rendering the task.
+- Breadcrumbs that suggested `--status doing` now suggest `--status in-progress`.
+
 ## 1.1.0 — 2026-05-16
 
 ### Added — wiki

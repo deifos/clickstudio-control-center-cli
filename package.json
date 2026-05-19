@@ -1,6 +1,6 @@
 {
   "name": "clickstudio-control-center-cli",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Command-line interface for Click Studio Control Center — manage projects, tasks, and logs from your terminal or AI agent",
   "type": "module",
   "main": "dist/src/cli.js",
